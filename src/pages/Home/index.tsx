@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Play } from 'phosphor-react'
 import { useForm } from 'react-hook-form'
 import {
@@ -11,6 +11,7 @@ import {
   TaskInput,
 } from './styles'
 import { zodResolver } from '@hookform/resolvers/zod'
+import { differenceInSeconds } from 'date-fns'
 import * as zod from 'zod'
 
 const newCycleFormValidationSchema = zod.object({
@@ -28,6 +29,7 @@ interface Cycle {
   id: string
   task: string
   minutesAmount: number
+  startDate: Date
 }
 
 export function Home() {
@@ -49,26 +51,51 @@ export function Home() {
       id,
       task: data.task,
       minutesAmount: data.minutesAmount,
+      startDate: new Date(),
     }
 
     setCycles((state) => [...state, newCycle])
+    setAmountSecondsPassed(0)
     setActiveCycleId(id)
     reset()
   }
 
   const activeCycle = cycles.find((cycle) => cycle.id === activeCycleId)
 
-  const totalSeconds = activeCycle ? activeCycle.minutesAmount * 60 : 0
-  const currentSeconds = activeCycle ? totalSeconds - amountSecondsPassed : 0
+  const totalSeconds = activeCycle ? activeCycle.minutesAmount * 60 : 0 // Convert minutes to seconds
+  const currentSeconds = activeCycle ? totalSeconds - amountSecondsPassed : 0 // Subtracting from the total seconds the ones that have already passed
 
-  const minutesAmount = Math.floor(currentSeconds / 60)
-  const secondsAmount = currentSeconds % 60
+  const minutesAmount = Math.floor(currentSeconds / 60) // Converting to minutes from the current second
+  const secondsAmount = currentSeconds % 60 // Taking the rest of what wasn't for minutes
 
+  // Converting to string and adding two position string
   const minutes = String(minutesAmount).padStart(2, '0')
   const seconds = String(secondsAmount).padStart(2, '0')
 
   const task = watch('task')
   const isSubmitDisabled = !task
+
+  useEffect(() => {
+    let interval: number
+
+    if (activeCycle) {
+      interval = setInterval(() => {
+        setAmountSecondsPassed(
+          differenceInSeconds(new Date(), activeCycle.startDate),
+        )
+      }, 1000)
+    }
+
+    return () => {
+      clearInterval(interval)
+    }
+  }, [activeCycle])
+
+  useEffect(() => {
+    if (activeCycle) {
+      document.title = `${minutes}: ${seconds}`
+    }
+  }, [activeCycle, minutes, seconds])
 
   return (
     <HomeContainer>
